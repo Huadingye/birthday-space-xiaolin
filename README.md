@@ -31,7 +31,7 @@
 - `assets/sculpture.js`：多层粒子蛋糕、装饰及烛火；主场景使用字形采样生成的重组目标。
 - `assets/dedication.js`：「小林子」与完整祝福的粒子字形目标，以及绕着蛋糕运行的银蓝光丝。祝福不会常驻画面，只在粒子彩蛋演出时显现；字形取自设备上的中文衬线字体，不同设备会有细微差异。
 - `assets/encounters.js`：五颗互动晶体星、连线、光蝶与流星池。
-- `assets/portrait.js`：OC 幻影的显隐、光扫与边缘融合。
+- `assets/portrait.js`：从立绘像素生成 OC 粒子，让粒子从四周汇聚成角色；随后以较低亮度淡入抠背景后的立绘，隐藏时粒子反向散开。Canvas 降级场景保留简化的二维聚合效果。
 - `assets/atmosphere.js`：月亮、程序星云、镜面地面、波纹、花瓣、星尘、空间光轨与月面闪光。
 - `index.html` 与 `assets/space.js`：手势驱动的 SVG 光迹。
 - `assets/oc-portrait.webp`：适配深色空间的完整 OC 图片；`oc-portrait-data.js` 为同一图片的内嵌副本，便于本地离线加载。

@@ -30,6 +30,7 @@
   let messageBlend=0, act='name', lastTap=-10, lastTapX=0,lastTapY=0;
   let wishVolleys=-1, nextPhotoAt=0;
   let fallbackPortrait=null;
+  let fallbackPortraitPoints=[],fallbackPortraitProgress=0,fallbackPortraitPrevious=0,fallbackPortraitDirection=0;
   const touchWave={x:.5,y:.5,time:-100};
   const fallbackStars=Array.from({length:5},(_,i)=>({lit:false,x:0,y:0,index:i}));
   const fallbackButterfly={x:0,y:0};
@@ -306,13 +307,31 @@
       try{dedication=window.createBirthdayDedication(THREE,new THREE.Scene(),{mobile:true,count:data.count});data.targets=dedication.targets.name;data.wishTargets=dedication.targets.wish;}catch(_){}
     }
     if(window.OC_PORTRAIT_DATA_URL&&typeof Image!=='undefined'){
-      fallbackPortrait=new Image();fallbackPortrait.src=window.OC_PORTRAIT_DATA_URL;
+      fallbackPortrait=new Image();fallbackPortrait.onload=prepareFallbackPortrait;fallbackPortrait.src=window.OC_PORTRAIT_DATA_URL;
     }
     if(!data) {
       announce('场景资源未能加载，请保留 assets 文件夹与 HTML 在同一目录。');
     } else announce('已切换至轻量粒子空间，仍可拖动和长按。');
     console.warn('Using the Canvas particle space.',error);
     resize();
+  }
+
+  function prepareFallbackPortrait(){
+    if(!fallbackPortrait||!fallbackPortrait.naturalWidth)return;
+    const source=document.createElement('canvas');source.width=fallbackPortrait.naturalWidth;source.height=fallbackPortrait.naturalHeight;
+    const ctx=source.getContext('2d',{willReadFrequently:true});if(!ctx)return;
+    try{ctx.drawImage(fallbackPortrait,0,0);}catch(_){return;}
+    let pixels;
+    try{pixels=ctx.getImageData(0,0,source.width,source.height).data;}catch(_){return;}
+    const step=12,found=[];
+    for(let y=step>>1;y<source.height;y+=step)for(let x=step>>1;x<source.width;x+=step){
+      const k=(y*source.width+x)*4,dr=pixels[k]-3,dg=pixels[k+1]-6,db=pixels[k+2]-16;
+      if(pixels[k+3]<120||dr*dr+dg*dg+db*db<700)continue;
+      found.push({u:x/source.width,v:y/source.height,r:pixels[k],g:pixels[k+1],b:pixels[k+2],seed:Math.random(),angle:Math.random()*Math.PI*2,distance:.45+Math.random()*1.35});
+    }
+    const count=Math.min(1500,found.length),stride=found.length/Math.max(1,count);
+    fallbackPortraitPoints=Array.from({length:count},(_,i)=>found[Math.floor((i+.5)*stride)]);
+    if(portraitOpacity>.002){fallbackPortraitProgress=0;fallbackPortraitDirection=1;}
   }
 
   function setMode(next) {
@@ -377,7 +396,8 @@
     cursor.style.setProperty('--charge',charge.toFixed(3));
     halo=mix(halo,charge+scatter*.5,1-Math.exp(-dt*3));
     const portraitTarget=clock<portraitUntil?1:0;
-    portraitOpacity=mix(portraitOpacity,portraitTarget,1-Math.exp(-dt*(reduced?8:2.7)));
+    const portraitRate=portraitTarget>portraitOpacity?(reduced?8:2.7):(reduced?4:1.15);
+    portraitOpacity=mix(portraitOpacity,portraitTarget,1-Math.exp(-dt*portraitRate));
   }
 
   function shower(){
@@ -556,6 +576,7 @@
       if(atmosphere&&atmosphere.resize)atmosphere.resize(dpr);
       if(dedication)dedication.resize(width/height);
       if(encounters)encounters.resize(dpr);
+      if(portrait)portrait.resize(dpr);
     }
     schedule();
   }
@@ -624,9 +645,26 @@
     const haze=ctx.createRadialGradient(width*.5,height*.5,0,width*.5,height*.5,width*.6);
     haze.addColorStop(0,'#182033');haze.addColorStop(1,'#040811');ctx.fillStyle=haze;ctx.fillRect(0,0,width,height);
     if(!data)return;
+    if(portraitOpacity>fallbackPortraitPrevious+.001){if(fallbackPortraitPrevious<=.002)fallbackPortraitProgress=0;fallbackPortraitDirection=1;}
+    else if(portraitOpacity<fallbackPortraitPrevious-.001)fallbackPortraitDirection=-1;
+    if(fallbackPortraitDirection>0)fallbackPortraitProgress=Math.min(1,fallbackPortraitProgress+dt/(reduced?.7:1.4));
+    else if(fallbackPortraitDirection<0)fallbackPortraitProgress=Math.max(0,fallbackPortraitProgress-dt/(reduced?.4:.95));
+    fallbackPortraitPrevious=portraitOpacity;
+    const portraitReveal=smooth(fallbackPortraitProgress);
     if(fallbackPortrait&&fallbackPortrait.complete&&fallbackPortrait.naturalWidth>0&&portraitOpacity>.01){
       const h=Math.min(height*.75,width*1.5),w=h/1.5;
-      ctx.globalAlpha=portraitOpacity;ctx.drawImage(fallbackPortrait,width/2-w/2,height*.52-h/2,w,h);ctx.globalAlpha=1;
+      const left=width/2-w/2,top=height*.52-h/2;
+      if(portraitReveal<.995&&fallbackPortraitPoints.length){
+        ctx.globalCompositeOperation='lighter';ctx.globalAlpha=portraitOpacity*.5*(1-smooth((portraitReveal-.62)/.38));
+        for(const p of fallbackPortraitPoints){
+          const tx=left+p.u*w,ty=top+p.v*h,travel=1-portraitReveal;
+          const sx=tx+Math.cos(p.angle)*p.distance*Math.max(w,h),sy=ty+Math.sin(p.angle)*p.distance*Math.max(w,h);
+          const spin=Math.sin(clock*1.5+p.seed*9)*travel*2.6;
+          ctx.fillStyle=`rgb(${p.r},${p.g},${p.b})`;ctx.fillRect(sx+(tx-sx)*portraitReveal+spin,sy+(ty-sy)*portraitReveal-spin,1.4,1.4);
+        }
+        ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+      }
+      ctx.globalAlpha=portraitOpacity*.66*portraitReveal;ctx.drawImage(fallbackPortrait,left,top,w,h);ctx.globalAlpha=1;
     }
     const scale=Math.min(width/5.4,height/5.3)/zoom;
     const co=Math.cos(yaw),si=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
@@ -667,7 +705,7 @@
       const distance=base*sceneZoom*(1-charge*.055)*(1+scatter*.07);
       camera.position.set(Math.sin(a)*Math.cos(elevation)*distance,Math.sin(elevation)*distance+.55,Math.cos(a)*Math.cos(elevation)*distance);
       camera.lookAt(0,.45,0);
-      [material,reflectionMaterial].forEach(mat=>{const u=mat.uniforms;u.uFacing.value=a;u.uMessageBlend.value=messageBlend;u.uPortrait.value=portraitOpacity*(1-morph)*(mobile?1:.4);u.uTime.value=clock;u.uCharge.value=charge;u.uScatter.value=scatter;u.uMorph.value=morph;u.uIntro.value=intro;u.uMotion.value=reduced?0:1;});
+      [material,reflectionMaterial].forEach(mat=>{const u=mat.uniforms;u.uFacing.value=a;u.uMessageBlend.value=messageBlend;u.uPortrait.value=portraitOpacity*(1-morph)*(mobile?.28:.15);u.uTime.value=clock;u.uCharge.value=charge;u.uScatter.value=scatter;u.uMorph.value=morph;u.uIntro.value=intro;u.uMotion.value=reduced?0:1;});
       lightGroup.visible=morph<.35&&scatter<.2;
       lightGroup.children.forEach((s,i)=>{s.material.opacity=(.45+(reduced?0:.12*Math.sin(clock*5+i)))*(1-scatter*5)*(1-morph);});
       if(atmosphere)atmosphere.update(clock,dt,{energy:charge,burst:scatter,pointer:{x:pointerX,y:pointerY},mode,reducedMotion:reduced});
