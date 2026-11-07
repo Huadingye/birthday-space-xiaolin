@@ -9,7 +9,7 @@
     const font = '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", "SimSun", serif';
     let seed = 170127, disposed = false;
     let visible = 0, localTime = 0;
-    const textures = [], materials = [], geometries = [];
+    const materials = [], geometries = [];
     function random() {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 4294967296;
@@ -80,67 +80,12 @@
     const wishShape = sampleTargets(['祝：小林子', '17岁生日快乐'], mobile ? 3.5 : 4.7, mobile ? 1.68 : 1.98);
 
     const rootGroup = new THREE.Group();
-    rootGroup.name = 'birthday-dedication';
-    rootGroup.position.set(0, 2.55, -.3);
+    rootGroup.name = 'celestial-ribbons';
+    rootGroup.position.set(0, .82, -.3);
     scene.add(rootGroup);
     const time = { value: 0 }, opacity = { value: 0 };
-
-    function inscription(canvas, w, h, y, index) {
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.generateMipmaps = false;
-      textures.push(texture);
-      const geometry = new THREE.PlaneGeometry(w, h);
-      geometries.push(geometry);
-      const material = new THREE.ShaderMaterial({
-        uniforms: { uMap: { value: texture }, uTime: time, uOpacity: opacity, uIndex: { value: index } },
-        vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-        fragmentShader: `
-          precision highp float;
-          uniform sampler2D uMap;
-          uniform float uTime, uOpacity, uIndex;
-          varying vec2 vUv;
-          void main() {
-            float alpha = texture2D(uMap,vUv).a;
-            if (alpha < .015) discard;
-            float travel = fract(uTime*.055 + uIndex*.23);
-            float sweepOffset=(vUv.x-travel)*15.0;
-            float sweep = exp(-sweepOffset*sweepOffset);
-            vec3 ice = mix(vec3(.69,.81,1.0),vec3(.98,.97,1.0),vUv.y*.65+.2);
-            ice += vec3(.1,.14,.19)*sweep;
-            gl_FragColor = vec4(ice,alpha*uOpacity);
-          }`,
-        transparent: true, depthWrite: false, side: THREE.DoubleSide,
-        blending: THREE.NormalBlending
-      });
-      materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.y = y;
-      mesh.renderOrder = 10;
-      rootGroup.add(mesh);
-      return mesh;
-    }
-
-    const heading = surface(1400, 360);
-    heading.context.font = `400 270px ${font}`;
-    const nameWidth = heading.context.measureText('小林子').width;
-    heading.context.font = `400 95px ${font}`;
-    const prefixWidth = heading.context.measureText('祝：').width;
-    const gap = 26;
-    const start = (1400 - nameWidth - prefixWidth - gap) * .5;
-    heading.context.textAlign = 'left';
-    heading.context.fillText('祝：', start, 195);
-    heading.context.font = `400 270px ${font}`;
-    heading.context.fillText('小林子', start + prefixWidth + gap, 175);
-    inscription(heading.canvas, mobile ? 3.58 : 4.0, .87, .3, 0);
-
-    const subheading = surface(1400, 220);
-    subheading.context.font = `400 155px ${font}`;
-    subheading.context.fillText('17岁生日快乐', 700, 106, 1240);
-    inscription(subheading.canvas, mobile ? 2.85 : 3.15, .5, -.3, 1);
-
-    // A swept silver filament echoes the concept's long luminous lettering strokes.
+    // Keep the lettering only as particle targets for the hidden celebration.
+    // The visible curves now orbit the cake instead of carrying a permanent message.
     for (let arc = 0; arc < 2; arc++) {
       const samples = 220;
       const positions = new Float32Array(samples * 3);
@@ -184,7 +129,7 @@
         time.value = localTime;
         const intro = Number.isFinite(state.intro) ? Math.max(0, Math.min(1, state.intro)) : 1;
         const featured = ['constellation', 'inscription', 'finale'].includes(state.mode);
-        const desired = (featured ? .18 : .95) * intro;
+        const desired = (featured ? .38 : .22) * intro;
         visible += (desired - visible) * (1 - Math.exp(-delta * 4.5));
         opacity.value = visible;
         if (state.camera && state.camera.quaternion) rootGroup.quaternion.copy(state.camera.quaternion);
@@ -200,7 +145,6 @@
         scene.remove(rootGroup);
         geometries.forEach(geometry => geometry.dispose());
         materials.forEach(material => material.dispose());
-        textures.forEach(texture => texture.dispose());
         rootGroup.clear();
       }
     };

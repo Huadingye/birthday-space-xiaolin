@@ -3,7 +3,7 @@
  * { update(time, dt, state), pick(raycaster, time), activate(index, time), meteorShower(time, strength),
  *   getProgress(), resize(pixelRatio), dispose() }
  * pick() changes a crystal's state / activates the butterfly and returns
- * { kind: 'star'|'portal', index, point: THREE.Vector3, lit?, completed? }.
+ * { kind: 'star'|'portal'|'moon', index, point: THREE.Vector3, lit?, completed? }.
  * onComplete fires once for each completed set; all crystals reset eight seconds later.
  */
 (function () {
@@ -16,7 +16,7 @@
     scene.add(root);
     const hits = [], crystals = [], geometrySet = new Set(), materialSet = new Set();
     let disposed = false, lastTime = 0, motionTime = 0, completeAt = -Infinity;
-    let completed = false, portalAt = -Infinity, meteorCursor = 0, nextAmbient = 5.5;
+    let completed = false, portalAt = -Infinity, moonAt = -Infinity, meteorCursor = 0, nextAmbient = 5.5;
     let reduced = !!options.reducedMotion, pixelRatio = 1;
     const TAU = Math.PI * 2;
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -101,6 +101,11 @@
     const links = new THREE.LineSegments(linkGeometry, material(new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending })));
     links.frustumCulled = false;
     root.add(links);
+
+    const moonHit = new THREE.Mesh(geometry(new THREE.SphereGeometry(1.3, 16, 12)), hitMaterial);
+    moonHit.position.set(-4, 3.3, -7);
+    moonHit.userData = { kind: 'moon', index: 0 };
+    root.add(moonHit);hits.push(moonHit);
 
     // A softly animated light butterfly is the portrait portal's spatial affordance.
     const butterfly = new THREE.Group();
@@ -244,6 +249,10 @@
         // Keep double taps from repeatedly reopening the same apparition.
         if(t-portalAt>.65){portalAt=t;if(typeof options.onPortal==='function')options.onPortal(point.clone());}
         return {kind:'portal',index:0,point};
+      }
+      if(info.kind==='moon'){
+        if(t-moonAt>1.4){moonAt=t;if(typeof options.onMoon==='function')options.onMoon(point.clone());}
+        return {kind:'moon',index:0,point};
       }
       return collectCrystal(info.index,t);
     }

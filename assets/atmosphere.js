@@ -12,6 +12,7 @@
     let pulseSlot = 0;
     let energy = 0;
     let bloom = 0;
+    let moonFlash = 0;
     let motionTime = 0;
     let seed = 1789187;
     function random() {
@@ -23,6 +24,7 @@
     const motionUniform = { value: 0 };
     const energyUniform = { value: 0 };
     const bloomUniform = { value: 0 };
+    const moonFlashUniform = { value: 0 };
     const ratioUniform = { value: Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 1.8) };
     const pulses = Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, -10000, 0));
 
@@ -121,13 +123,14 @@
     const moon = new THREE.Mesh(
       new THREE.SphereGeometry(1.2, mobile ? 36 : 56, mobile ? 28 : 40),
       new THREE.ShaderMaterial({
-        uniforms: { uLight: { value: moonLight }, uCraters: { value: moonCraters }, uBloom: bloomUniform },
+        uniforms: { uLight: { value: moonLight }, uCraters: { value: moonCraters }, uBloom: bloomUniform, uMoonFlash: moonFlashUniform },
         vertexShader: moonVertex,
         fragmentShader: `
           precision highp float;
           uniform vec3 uLight;
           uniform vec4 uCraters[18];
           uniform float uBloom;
+          uniform float uMoonFlash;
           varying vec3 vSurface;
           varying vec3 vWorldNormal;
           varying vec3 vWorldPosition;
@@ -159,6 +162,7 @@
             vec3 silver = mix(vec3(0.65, 0.63, 0.76), vec3(0.97, 0.85, 0.68), daylight * 0.7);
             vec3 color = vec3(0.009, 0.012, 0.021) * (0.68 + texture * 0.32);
             color += silver * texture * daylight * terminator * (0.83 + uBloom * 0.07);
+            color += vec3(0.32, 0.39, 0.56) * uMoonFlash * (0.25 + daylight * 0.42);
             float rim = pow(1.0 - max(0.0, dot(normal, viewDirection)), 6.0);
             color += vec3(0.11, 0.10, 0.16) * rim * 0.26;
             color += vec3(0.21, 0.18, 0.15) * rim * terminator * 0.25;
@@ -178,10 +182,11 @@
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
-        uniforms: { uLight: { value: moonLight } },
+        uniforms: { uLight: { value: moonLight }, uBloom: bloomUniform },
         vertexShader: moonVertex,
         fragmentShader: `
           uniform vec3 uLight;
+          uniform float uBloom;
           varying vec3 vWorldNormal;
           varying vec3 vWorldPosition;
           void main() {
@@ -189,7 +194,7 @@
             vec3 v = normalize(cameraPosition - vWorldPosition);
             float rim = pow(1.0 - abs(dot(n, v)), 5.0);
             float lit = smoothstep(-0.12, 0.5, dot(n, uLight));
-            gl_FragColor = vec4(0.84, 0.72, 0.91, rim * (0.012 + lit * 0.11));
+            gl_FragColor = vec4(0.84, 0.76, 0.94, rim * (0.012 + lit * 0.11 + uBloom * 0.08));
           }
         `
       })
@@ -523,6 +528,11 @@
         pulses[pulseSlot].set(x || 0, z || 0, Number.isFinite(time) ? time : timeUniform.value, strength == null ? 1 : Math.max(0, strength));
         pulseSlot = (pulseSlot + 1) % pulses.length;
       },
+      flash: function (strength) {
+        if (disposed) return;
+        moonFlash = Math.max(moonFlash, Math.min(1.8, Math.max(.25, strength || 1)));
+        moonFlashUniform.value = moonFlash;
+      },
       resize: function (pixelRatio) {
         ratioUniform.value = Math.min(pixelRatio || window.devicePixelRatio || 1, mobile ? 1.5 : 1.8);
       },
@@ -535,7 +545,10 @@
         timeUniform.value = time;
         motionUniform.value = motionTime;
         const desiredEnergy = Number.isFinite(state.energy) ? Math.max(0, Math.min(1, state.energy)) : 0;
-        const desiredBloom = Number.isFinite(state.burst) ? Math.max(0, Math.min(1, state.burst)) : state.burst ? 1 : 0;
+        moonFlash *= Math.exp(-delta * 1.1);
+        moonFlashUniform.value = moonFlash;
+        const burst = Number.isFinite(state.burst) ? Math.max(0, Math.min(1, state.burst)) : state.burst ? 1 : 0;
+        const desiredBloom = Math.min(1.8, burst + moonFlash * .65);
         const ease = 1 - Math.exp(-delta * 8);
         energy += (desiredEnergy - energy) * ease;
         bloom += (desiredBloom - bloom) * ease;

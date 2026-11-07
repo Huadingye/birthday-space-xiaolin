@@ -6,6 +6,9 @@
   const hint = document.getElementById('gesture-hint');
   const cursor = document.getElementById('cursor');
   const status = document.getElementById('status');
+  const gestureRibbon = document.getElementById('gesture-ribbon');
+  const ribbonGlow = gestureRibbon.querySelector('.ribbon-halo');
+  const ribbonCore = gestureRibbon.querySelector('.ribbon-core');
   const soundButton = document.getElementById('sound');
   const motionButton = document.getElementById('motion');
   const captureButton = document.getElementById('capture');
@@ -30,8 +33,10 @@
   const touchWave={x:.5,y:.5,time:-100};
   const fallbackStars=Array.from({length:5},(_,i)=>({lit:false,x:0,y:0,index:i}));
   const fallbackButterfly={x:0,y:0};
+  const fallbackMoon={x:0,y:0};
   const fallbackMeteors=[];
-  let fallbackResetAt=-1,fallbackNextMeteor=0;
+  const ribbonPoints=[];
+  let fallbackResetAt=-1,fallbackNextMeteor=0,fallbackMoonPulseUntil=-1,lastRibbonAt=-10;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   const mix = (a, b, t) => a + (b - a) * t;
   const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -277,7 +282,12 @@
     if(window.createBirthdayEncounters)encounters=window.createBirthdayEncounters(THREE,world,{
       mobile,reducedMotion:reduced,
       onComplete(){if(['idle','charging'].includes(mode))celebrate();else shower();announce('星点已全部点亮，送给小林子的生日星座已完成。');},
-      onPortal(){showPortrait();}
+      onPortal(){showPortrait();},
+      onMoon(){
+        if(atmosphere){atmosphere.flash(1.5);atmosphere.pulse(-4,-7,clock,1.7);}
+        if(encounters)encounters.meteorShower(clock,.85);
+        hideHint();announce('月光回应了这次触碰。');
+      }
     });
     if(window.createBirthdayPortrait)portrait=window.createBirthdayPortrait(THREE,world,{mobile});
     composer=createBloom();
@@ -389,6 +399,10 @@
       const star=fallbackStars.find(s=>Math.hypot(x-s.x,y-s.y)<27);
       if(star){activateFallbackStar(star.index);picked=star;}
       else if(Math.hypot(x-fallbackButterfly.x,y-fallbackButterfly.y)<32){showPortrait();picked=fallbackButterfly;}
+      else if(Math.hypot(x-fallbackMoon.x,y-fallbackMoon.y)<30){
+        fallbackMoonPulseUntil=clock+2.2;addFallbackMeteors(8);
+        playChime(1);hideHint();announce('月光回应了这次触碰。');picked=fallbackMoon;
+      }
     } else if(encounters&&raycaster){
       raycaster.setFromCamera(new THREE.Vector2(x/width*2-1,1-y/height*2),camera);
       picked=encounters.pick(raycaster,clock);
@@ -401,6 +415,27 @@
   }
 
   function hideHint(){hint.classList.add('is-hidden');}
+  function addRibbonPoint(x,y){
+    const last=ribbonPoints[ribbonPoints.length-1];
+    if(last&&Math.hypot(x-last.x,y-last.y)<5)return;
+    ribbonPoints.push({x,y,time:clock});
+    if(ribbonPoints.length>48)ribbonPoints.shift();
+  }
+  function updateGestureRibbon(){
+    const lifetime=reduced?.58:1.1;
+    while(ribbonPoints.length&&clock-ribbonPoints[0].time>lifetime)ribbonPoints.shift();
+    if(ribbonPoints.length<2){gestureRibbon.style.opacity='0';ribbonGlow.setAttribute('d','');ribbonCore.setAttribute('d','');return;}
+    let path=`M ${ribbonPoints[0].x.toFixed(1)} ${ribbonPoints[0].y.toFixed(1)}`;
+    for(let i=1;i<ribbonPoints.length;i++){
+      const p=ribbonPoints[i],prev=ribbonPoints[i-1];
+      const mx=(prev.x+p.x)*.5,my=(prev.y+p.y)*.5;
+      path+=` Q ${prev.x.toFixed(1)} ${prev.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)}`;
+    }
+    const last=ribbonPoints[ribbonPoints.length-1];
+    path+=` T ${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
+    ribbonGlow.setAttribute('d',path);ribbonCore.setAttribute('d',path);
+    gestureRibbon.style.opacity=String(clamp(1-(clock-last.time)/(reduced?.48:.85),0,1));
+  }
   function worldPoint(x,y,floor=false) {
     if(isFallback||!raycaster) {
       const scale=Math.min(width/5.4,height/5.3)/zoom;
@@ -426,6 +461,7 @@
     pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(pointers.size===1){
       activeGesture={id:event.pointerId,x:event.clientX,y:event.clientY,lastX:event.clientX,lastY:event.clientY,start:clock,moved:false,celebrated:false};
+      ribbonPoints.length=0;lastRibbonAt=clock;addRibbonPoint(event.clientX,event.clientY);
       touchSpace(event.clientX,event.clientY);hideHint();
     } else {
       if(activeGesture)activeGesture.moved=true;
@@ -446,6 +482,7 @@
       targetYaw-=dx*.0045;targetPitch=clamp(targetPitch+dy*.003,-.04,.62);
       if(mode==='charging'){charge=0;setMode('idle');}
       if(clock-lastTouch>.045){sparks(worldPoint(event.clientX,event.clientY),4,.24);lastTouch=clock;}
+      if(clock-lastRibbonAt>.012){addRibbonPoint(event.clientX,event.clientY);lastRibbonAt=clock;}
     }
     g.lastX=event.clientX;g.lastY=event.clientY;
   }
@@ -510,6 +547,7 @@
 
   function resize() {
     width=innerWidth;height=innerHeight;dpr=Math.min(devicePixelRatio||1,mobile?1.45:1.8);
+    gestureRibbon.setAttribute('viewBox',`0 0 ${width} ${height}`);
     if(isFallback){fallback.width=Math.round(width*dpr);fallback.height=Math.round(height*dpr);context2d.setTransform(dpr,0,0,dpr,0,0);}
     else if(renderer){
       renderer.setPixelRatio(dpr);renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();
@@ -541,6 +579,15 @@
     const positions=[[-1.9,.9,.1],[-1.55,-.8,0],[0,-1.7,.2],[1.5,-.85,0],[1.95,.55,.1]];
     fallbackStars.forEach((star,i)=>Object.assign(star,project(...positions[i])));
     ctx.save();ctx.lineWidth=1;
+    fallbackMoon.x=width*.13;fallbackMoon.y=height*.2;
+    const moonRadius=Math.max(11,Math.min(18,width*.038));
+    ctx.shadowBlur=13;ctx.shadowColor='#d9e5ff';ctx.fillStyle='rgba(218,226,246,.74)';
+    ctx.beginPath();ctx.arc(fallbackMoon.x,fallbackMoon.y,moonRadius,-1.2,1.2);
+    ctx.arc(fallbackMoon.x+moonRadius*.48,fallbackMoon.y-moonRadius*.07,moonRadius*.83,1.2,-1.2,true);ctx.closePath();ctx.fill();
+    if(clock<fallbackMoonPulseUntil){
+      const age=2.2-(fallbackMoonPulseUntil-clock),radius=age*Math.min(width,height)*.18;
+      ctx.globalAlpha=Math.max(0,1-age/2.2)*.5;ctx.beginPath();ctx.arc(fallbackMoon.x,fallbackMoon.y,radius,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+    }
     for(let i=1;i<5;i++){
       const a=fallbackStars[i-1],b=fallbackStars[i];
       ctx.strokeStyle=a.lit&&b.lit?'rgba(175,210,255,.55)':'rgba(140,179,229,.1)';
@@ -601,11 +648,6 @@
       const v=project(p.x,p.y,p.z);ctx.fillStyle=`rgba(255,214,171,${Math.max(0,p.life/1.6)})`;ctx.fillRect(v.x,v.y,2,2);if(p.life<=0)transient.splice(i,1);}
     ctx.globalCompositeOperation='source-over';
     drawFallbackEncounters(ctx,dt,project);
-    ctx.textAlign='center';ctx.fillStyle='#e1edff';
-    ctx.font=`${Math.min(36,width*.074)}px SimSun,serif`;
-    ctx.fillText('祝：小林子',width/2,height*.16);
-    ctx.font=`${Math.min(25,width*.048)}px SimSun,serif`;
-    ctx.fillText('17岁生日快乐',width/2,height*.16+40);
   }
 
   function frame(now) {
@@ -635,6 +677,7 @@
       updateEffects(dt);
       if(composer)composer.render();else renderer.render(world,camera);
     }
+    updateGestureRibbon();
     if(!paused)schedule();
   }
   function schedule(){if(!frameId&&!hidden)frameId=requestAnimationFrame(frame);}
