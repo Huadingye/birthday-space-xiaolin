@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080912">
+  <meta name="description" content="祝：小林子17岁生日快乐。一场可以触碰的专属生日星空。">
+  <title>祝：小林子17岁生日快乐</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --night: #080912;
+      --pearl: #eee6e7;
+      --champagne: #eed7b5;
+      --rose: #e2b5c4;
+      --charge: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--night); overscroll-behavior: none; }
+    body { color: var(--pearl); -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; font: inherit; }
+    button, canvas { touch-action: none; }
+    [hidden] { display: none !important; }
+    ::selection { background: var(--champagne); color: var(--night); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    #space, #fallback {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+    #space:focus-visible, #fallback:focus-visible { outline: 1px solid rgba(238, 215, 181, .6); outline-offset: -7px; }
+    #fallback { display: none; }
+    .is-fallback #space { display: none; }
+    .is-fallback #fallback { display: block; }
+
+    .periphery {
+      position: fixed;
+      z-index: 2;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at 50% 46%, transparent 40%, rgba(4, 5, 12, .18) 80%, rgba(4, 5, 12, .45) 100%);
+      transition: opacity 1.2s ease;
+    }
+    .is-celebrating .periphery { opacity: .45; }
+    .capture-flash { position:fixed;inset:0;z-index:15;background:#d9eaff;opacity:0;pointer-events:none;transition:opacity .3s ease; }
+    .is-capturing .capture-flash { opacity:.26;transition-duration:.04s; }
+    .space-controls {
+      position: fixed;
+      z-index: 5;
+      top: max(23px, env(safe-area-inset-top));
+      right: max(23px, env(safe-area-inset-right));
+      display: flex;
+      gap: 3px;
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+    .is-ready .space-controls { opacity: 1; }
+    .icon-control {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      align-items: center;
+      justify-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #b9b3c1;
+      cursor: pointer;
+      transition: color .2s ease, background .2s ease;
+    }
+    .icon-control svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-control:hover { color: #f5e7db; background: rgba(238, 215, 181, .07); }
+    .icon-control:focus-visible { outline: 1px solid var(--champagne); outline-offset: 2px; color: #fff2e9; }
+    .sound-on, .motion-play { display: none; }
+    #sound[aria-pressed="true"] .sound-on { display: block; }
+    #sound[aria-pressed="true"] .sound-off { display: none; }
+    .is-paused .motion-play, #motion[aria-pressed="true"] .motion-play { display: block; }
+    .is-paused .motion-pause, #motion[aria-pressed="true"] .motion-pause { display: none; }
+
+    #gesture-hint {
+      position: fixed;
+      z-index: 3;
+      right: 24px;
+      bottom: max(29px, env(safe-area-inset-bottom));
+      left: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #bdb7c6;
+      font-size: 11px;
+      letter-spacing: .1em;
+      line-height: 24px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    #gesture-hint svg { width: 30px; height: 26px; fill: none; stroke: #d8c6c9; stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
+    .is-ready #gesture-hint { opacity: .8; transform: translateY(0); transition-delay: 1.8s; }
+    .is-ready #gesture-hint.is-hidden, .is-charging #gesture-hint, .is-celebrating #gesture-hint { opacity: 0; transform: translateY(0); transition-delay: 0s; }
+
+    #cursor {
+      position: fixed;
+      z-index: 6;
+      top: 0;
+      left: 0;
+      width: 36px;
+      height: 36px;
+      margin: -18px 0 0 -18px;
+      pointer-events: none;
+      opacity: 0;
+      will-change: transform;
+    }
+    #cursor svg { display: block; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+    .cursor-orbit { fill: none; stroke: rgba(238, 215, 181, .35); stroke-width: .65; }
+    .cursor-progress { fill: none; stroke: #ffe2b0; stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--charge, 0) * 100); }
+    .cursor-dot { fill: #f5e3cc; transition: r .2s ease; }
+    .is-charging .cursor-dot { r: 2.2px; }
+    #cursor.is-visible { opacity: 1; }
+
+    .loader {
+      position: fixed;
+      z-index: 8;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #080912;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 1.2s ease, visibility 1.2s ease;
+    }
+    .loader svg { width: 54px; height: 54px; fill: none; stroke: #ddc9bb; stroke-width: 1; overflow: visible; animation: orbit 4s linear infinite; }
+    .loader circle { stroke: rgba(221, 201, 187, .2); }
+    .loader .loader-spark { fill: #f5e4d3; stroke: none; }
+    .is-ready .loader { opacity: 0; visibility: hidden; }
+    @keyframes orbit { to { transform: rotate(360deg); } }
+    .no-script { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 32px; background: var(--night); color: var(--pearl); font-size: 14px; text-align: center; line-height: 1.8; }
+
+    @media (hover: hover) and (pointer: fine) {
+      body.is-ready #space { cursor: none; }
+      body.is-ready #fallback { cursor: none; }
+    }
+    @media (pointer: coarse) { #cursor { display: none; } }
+    @media (max-width: 600px) {
+      .space-controls { top: max(13px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); }
+      #gesture-hint { bottom: max(24px, env(safe-area-inset-bottom)); font-size: 11px; letter-spacing: .05em; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
+    }
+  </style>
+  <script defer src="assets/vendor/three.min.js"></script>
+  <script defer src="assets/sculpture.js"></script>
+  <script defer src="assets/atmosphere.js"></script>
+  <script defer src="assets/dedication.js"></script>
+  <script defer src="assets/encounters.js"></script>
+  <script defer src="assets/oc-portrait-data.js"></script>
+  <script defer src="assets/portrait.js"></script>
+  <script defer src="assets/space.js"></script>
+</head>
+<body class="is-muted">
+  <canvas id="space" tabindex="0" aria-label="祝：小林子17岁生日快乐。拖动环视，点亮五颗晶体星，触碰光蝶唤醒角色，双击召唤流星雨，长按许愿。方向键环视，空格许愿，数字1至5点亮星点，O唤醒角色，F召唤流星，S保存留影，R复原，M声音，P暂停。"></canvas>
+  <canvas id="fallback" tabindex="0" aria-label="祝：小林子17岁生日快乐。生日空间的简化视图。点星、触蝶、双击流星、长按许愿；数字1至5点星，O唤醒角色，F流星，空格许愿，S留影，P暂停。"></canvas>
+  <div class="periphery" aria-hidden="true"></div>
+  <div class="capture-flash" aria-hidden="true"></div>
+  <div class="space-controls" aria-label="声音、留影与动画">
+    <button id="capture" class="icon-control" type="button" aria-label="保存生日留影（S）" title="留影 · S">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l1.5-2h5L16 5h4a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4Z"></path><circle cx="12" cy="12" r="4"></circle></svg>
+    </button>
+    <button id="sound" class="icon-control" type="button" aria-label="开启声音（M）" aria-pressed="false" title="声音 · M">
+      <svg class="sound-off" viewBox="0 0 24 24" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5Z M17 9l4 6 M21 9l-4 6"></path></svg>
+      <svg class="sound-on" viewBox="0 0 24 24" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5Z M15.5 8.5a5 5 0 0 1 0 7 M18.5 5.5a9 9 0 0 1 0 13"></path></svg>
+    </button>
+    <button id="motion" class="icon-control" type="button" aria-label="暂停动画（P）" aria-pressed="false" title="暂停 · P">
+      <svg class="motion-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12 M16 6v12"></path></svg>
+      <svg class="motion-play" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7V5Z"></path></svg>
+    </button>
+  </div>
+  <div id="gesture-hint" aria-hidden="true">
+    <svg viewBox="0 0 32 28"><path d="M4 8c2.7-3 7.5-3 10.2 0 M3 4l1 4 4-1 M17 22l-4-6.2c-.7-1.3 1-2.5 2-1.4l2 2V7.5a1.6 1.6 0 0 1 3.2 0v5.4l2-.6 2.7 1.5c1 .5 1.5 1.7 1.3 2.7l-1.3 6.1"></path></svg>
+    <span>点星 · 触蝶 · 双击流星 · 长按许愿</span>
+  </div>
+  <div id="cursor" aria-hidden="true">
+    <svg viewBox="0 0 36 36"><circle class="cursor-orbit" cx="18" cy="18" r="14"></circle><circle class="cursor-progress" cx="18" cy="18" r="14" pathLength="100"></circle><circle class="cursor-dot" cx="18" cy="18" r="1.2"></circle></svg>
+  </div>
+  <div class="loader" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="19"></circle><path d="M8 27A19 19 0 0 1 27 8"></path><circle class="loader-spark" cx="27" cy="8" r="1.7"></circle></svg></div>
+  <p id="status" class="sr-only" aria-live="polite"></p>
+  <noscript><div class="no-script">开启浏览器的 JavaScript 后，即可进入生日空间。</div></noscript>
+</body>
+</html>

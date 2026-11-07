@@ -1,0 +1,18 @@
+{
+  "assetType": "local adaptation of an existing generated OC illustration",
+  "createdAt": "2026-11-07",
+  "source": "outputs/ling-lan-birthday-v3/assets/oc-02-full.webp",
+  "originalGenerationSource": "outputs/rightcode-draw/job-20261107-212910/0.png",
+  "originalPrompt": "Create one complete full-body character illustration from the supplied original OC concept sketch. Preserve this distinct character identity: long lavender-indigo twin tails with soft green forelock strands, rosy pink eyes, long pointed elf ears, a green flower ornament at the right side of the hair, white bell-shaped ear accessories, a white ruffled collar, and the white, pale pink, and muted jade costume details shown in the reference. Extend the existing costume coherently into a modest full-length layered dress, stockings, and matching shoes while keeping the same design language and palette. Gentle three-quarter standing pose, calm friendly expression, arms relaxed and separated enough from the body to keep the full silhouette readable. Show the entire character from hair ornament to both shoe soles, centered with generous transparent margin; no hair, clothing, accessories, or shoes may touch or be cut by the image edges. Refined anime concept art with delicate painterly detail. True transparent alpha background only. No text, no logo, no signature, no extra character, no props, no crop, no cutoff.",
+  "transform": "Preserve the entire original alpha silhouette; proportionally reduce to 860 by 1290 and composite at center on a 1024 by 1536 solid #030610 background. Export WebP quality 90. No source area is cropped.",
+  "purpose": "Complete-character apparition accent in the birthday space, with dark clean margins for shader reveal and dissolve.",
+  "newGenerationAttempt": {
+    "provider": "Right Code / PPToken",
+    "model": "gpt-image-2",
+    "size": "1024x1536",
+    "quality": "high",
+    "referenceImage": "C:/Users/31222/AppData/Local/Temp/codex-clipboard-0d5aa320-982a-452b-9392-093585c87d4b.png",
+    "status": "failed: request read timeout; no image obtained; no retry submitted",
+    "prompt": "Create a refined anime character portrait for a silver-blue holographic apparition in a birthday space. Use the attached concept image as the exact character identity and visual style reference. Preserve the original girl: deep indigo lavender long twin tails, rosy magenta eyes, porcelain pale face, jade-green flower hair ornament with dangling white blossoms and small green accent strands, delicate white and mint lace frill collar and dress. Calm gentle expression, tasteful age-appropriate character design. Waist-up portrait, complete head, hair ornament, shoulders and all flowing hair with generous 10 percent clear margins; no part touches the edge. Centered composition, elegant elongated flowing hair curling inward toward the bottom. Precise fine anime illustration with polished hand-painted detail, soft silver-blue rim light tracing the face and hair, restrained pale jade reflections. Uniform nearly black navy background #030610 at the entire outer edge, atmosphere fading smoothly to that color. A few delicate white blossom petals near the shoulders only. No lettering of any language, no typography, no crown, no logo, no user interface, no frames, no borders, no watermark, no extra people, no cropped hair. Vertical 2:3 illustration."
+  }
+}
